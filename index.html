@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Shape Runner</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%E2%AD%90%3C/text%3E%3C/svg%3E">
+  <meta name="theme-color" content="#6ec6ff">
+</head>
+<body>
+  <div id="stage"></div>
+
+  <div id="hud" hidden>
+    <button id="btn-pause" class="hud-btn" aria-label="ポーズ"><i class="pbar"></i><i class="pbar"></i></button>
+    <div id="progress" aria-label="しんこう"></div>
+    <div id="status"><span id="streak"></span></div>
+
+    <div id="popup" hidden></div>
+    <div id="countdown" hidden></div>
+
+    <div id="mic">
+      <div id="mic-meter"><i></i><i></i><i></i><i></i><i></i></div>
+      <div id="heard" class="idle">ことばを いってね！</div>
+    </div>
+    <button id="btn-hint" class="hud-btn hint" aria-label="ヒント">💡 <span>ヒント</span></button>
+  </div>
+
+  <div id="screens"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
