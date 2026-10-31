@@ -133,6 +133,9 @@ ORD['thirtieth'] = 30; ORD['thirty-first'] = 31
 
 MAX_CHARS = 9
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from emoji_map import EMOJI, DETAIL_INK, DETAIL_WHITE
+
 
 def norm_id(english):
     """what the speech recogniser must hear"""
@@ -246,6 +249,8 @@ def make_word(ckey, special, en, it):
         if key not in ORD:
             return None
         w.update(k='g', j=f'{ORD[key]}日')
+    elif (EMOJI.get(f'{ckey}:{en.lower()}') or EMOJI.get(en.lower())):
+        w.update(k='g', j=EMOJI.get(f'{ckey}:{en.lower()}') or EMOJI[en.lower()])      # a picture shape instead of Japanese text
     else:
         ja = JA_FIX_CAT.get((ckey, en.lower())) or JA_FIX.get(en.lower(), it['ja'])
         ja = re.sub(r'[\s　]+', '', ja)
@@ -396,6 +401,103 @@ def extract_glyphs(chars, font_path, existing):
     return out, missing
 
 
+def emoji_font_dir():
+    return os.path.join(ROOT, 'node_modules/@fontsource/noto-emoji/files')
+
+
+def custom_arrows():
+    """Block arrows (and a U-turn) drawn by hand: the emoji versions sit in a box. Characters U+E000..E004 = left right up down turn."""
+    from shapely.geometry import Polygon, LineString
+    from shapely.affinity import rotate
+    from shapely.geometry.polygon import orient
+    right = Polygon([(-0.42, -0.13), (0.06, -0.13), (0.06, -0.36), (0.45, 0), (0.06, 0.36), (0.06, 0.13), (-0.42, 0.13)])
+    arc = [(-0.3 + 0.3 * (1 + __import__('math').cos(__import__('math').pi * (1 - i / 16))) , 0.1 + 0.3 * __import__('math').sin(__import__('math').pi * (1 - i / 16))) for i in range(17)]
+    turn = LineString([(-0.3, -0.4), (-0.3, 0.1)] + arc[1:-1] + [(0.3, 0.1), (0.3, -0.05)]).buffer(0.11, cap_style=2, join_style=1)
+    turn = turn.union(Polygon([(0.12, -0.05), (0.48, -0.05), (0.3, -0.38)]))
+    shapes = {'\ue000': rotate(right, 180, origin=(0, 0)), '\ue001': right, '\ue002': rotate(right, 90, origin=(0, 0)),
+              '\ue003': rotate(right, -90, origin=(0, 0)), '\ue004': turn}
+    out = {}
+    for ch, poly in shapes.items():
+        poly = orient(poly.simplify(0.002), 1.0)
+        pts = list(poly.exterior.coords)[:-1]
+        cmds = [['M' if i == 0 else 'L', [[round(x, 3) + 0.5, round(y, 3) + 0.4]]] for i, (x, y) in enumerate(pts)] + [['Z', []]]
+        out[ch] = {'adv': 1.0, 'cmds': cmds}
+    return out
+
+
+def extract_emoji(chars):
+    """Solid silhouettes of emoji (Noto Emoji, weight 700): every outline is filled, thin whiskers and hairline gaps are
+    smoothed away. Returns ({char: {adv, cmds}}, [missing chars])."""
+    from fontTools.ttLib import TTFont
+    from fontTools.pens.basePen import BasePen
+    from shapely.geometry import Polygon
+    from shapely.ops import unary_union
+    from shapely.geometry.polygon import orient
+
+    class Flat(BasePen):
+        def __init__(self, gs):
+            super().__init__(gs); self.rings = []; self.cur = None
+        def _moveTo(self, p): self.cur = [p]; self.rings.append(self.cur)
+        def _lineTo(self, p): self.cur.append(p)
+        def _curveToOne(self, a, b, c):
+            p0 = self.cur[-1]
+            for i in range(1, 9):
+                t = i / 8; u = 1 - t
+                self.cur.append((u**3 * p0[0] + 3 * u * u * t * a[0] + 3 * u * t * t * b[0] + t**3 * c[0],
+                                 u**3 * p0[1] + 3 * u * u * t * a[1] + 3 * u * t * t * b[1] + t**3 * c[1]))
+        def _qCurveToOne(self, a, b):
+            p0 = self.cur[-1]
+            for i in range(1, 9):
+                t = i / 8; u = 1 - t
+                self.cur.append((u * u * p0[0] + 2 * u * t * a[0] + t * t * b[0], u * u * p0[1] + 2 * u * t * a[1] + t * t * b[1]))
+        def _closePath(self): pass
+
+    fonts = [TTFont(f) for f in sorted(glob.glob(os.path.join(emoji_font_dir(), 'noto-emoji-*-700-normal.woff')))]
+    out, missing = {}, []
+    out.update(custom_arrows())
+    for ch in sorted(chars):
+        font = next((f for f in fonts if ord(ch) in f.getBestCmap()), None)
+        if not font:
+            missing.append(ch); continue
+        gs = font.getGlyphSet(); upm = font['head'].unitsPerEm
+        name = font.getBestCmap()[ord(ch)]
+        pen = Flat(gs); gs[name].draw(pen)
+        polys = [Polygon([(x / upm, y / upm) for x, y in r]).buffer(0) for r in pen.rings if len(r) > 2]
+        shape = unary_union(polys)
+        ink = None
+        if ch in DETAIL_INK or ch in DETAIL_WHITE:
+            ink = Polygon()
+            for r in pen.rings:
+                if len(r) > 2:
+                    ink = ink.symmetric_difference(Polygon([(x / upm, y / upm) for x, y in r]).buffer(0))
+        shape = shape.buffer(0.018, join_style=1).buffer(-0.018 - 0.012, join_style=1).buffer(0.012, join_style=1)   # close gaps, drop hairs
+        parts = [shape] if shape.geom_type == 'Polygon' else list(getattr(shape, 'geoms', []))
+        big = max((p.area for p in parts), default=0)
+        parts = [p for p in parts if p.area > big * 0.01]
+        if ink is not None and parts:
+            sil = unary_union(parts)
+            core = sil.buffer(-0.07)
+            counters = (ink if ch in DETAIL_INK else sil.difference(ink)).intersection(core)
+            counters = counters.buffer(-0.012).buffer(0.012)
+            cl = [counters] if counters.geom_type == 'Polygon' else list(getattr(counters, 'geoms', []))
+            cl = [c for c in cl if c.geom_type == 'Polygon' and c.area > 0.0012]
+            if cl:
+                sil = sil.difference(unary_union(cl))
+                parts = [sil] if sil.geom_type == 'Polygon' else list(sil.geoms)
+        parts = [orient(p.simplify(0.002), 1.0) for p in parts]
+        cmds = []
+        for p in parts:
+            for ring in [p.exterior, *p.interiors]:
+                pts = list(ring.coords)[:-1]
+                for i, (x, y) in enumerate(pts):
+                    cmds.append(['M' if i == 0 else 'L', [[round(x, 3), round(y, 3)]]])
+                cmds.append(['Z', []])
+        if not cmds:
+            missing.append(ch); continue
+        out[ch] = {'adv': round(gs[name].width / upm, 3), 'cmds': cmds}
+    return out, missing
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--model')
@@ -443,7 +545,10 @@ def main():
     # glyphs
     core = json.load(open(os.path.join(ROOT, 'src/data/glyphs.json')))
     chars = {ch for w in words.values() if w['k'] == 'g' for ch in w['j']}
-    gl, missing = extract_glyphs(chars, args.font, core)
+    emoji_chars = {ch for ch in chars if ord(ch) >= 0x2190 and not 0xe000 <= ord(ch) <= 0xe0ff and ch not in core and not re.match(r'[ぁ-ヿ㐀-鿿]', ch)}
+    gl, missing = extract_glyphs({c for c in chars - emoji_chars if not 0xe000 <= ord(c) <= 0xe0ff}, args.font, core)
+    egl, emissing = extract_emoji(emoji_chars)
+    gl.update(egl); missing += emissing
     if missing:
         print('NO GLYPH for', missing, '-> dropping those words')
         for k in [k for k, w in words.items() if w['k'] == 'g' and any(c in missing for c in w['j'])]:

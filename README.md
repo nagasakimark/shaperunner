@@ -49,6 +49,14 @@ and any word the voice model doesn't know (kendo, gyoza, okonomiyaki, patissier)
 `FruitAndVegetables.jpg`, `Things Around You.jpg` ... (capitals, spaces and `&` don't matter; jpg/png/webp). Anything without a picture shows its emoji.
 Keep them small (about 300×300): they're bundled into the page.
 
+**Picture shapes:** most words are cut as a picture, not as Japanese text: `scripts/emoji_map.py` maps ~500 English words to a Noto Emoji outline
+(cat, pizza, bus, soccer ball ...). `make_vocab.py` fills each outline into a solid silhouette (balls, panda and a few boxed icons keep their dark details as
+holes), and arrows are hand-drawn. Words with no good picture (feelings, grammar words, countries ...) still use their Japanese text. Add a word by adding
+`label emoji` to `emoji_map.py` and running `npm run vocab`. (Outlines: `@fontsource/noto-emoji`, SIL OFL.)
+
+**Spaces and capitals never matter:** what the listener hears is compared with spaces, capitals and punctuation removed, so "text book" = "textbook",
+"tv" = "TV" = "t v", "t shirt" = "tshirt". This also applies to Expert's second listener.
+
 Special categories: **Colors** (a paint splat in that colour), **Shapes** (real outlines: circle, star, heart, diamond, moon, oval, cross ...),
 **Numbers** (the digits 0, 1, 2 ... 100), **Days** (one kanji: 月 → Monday), **Months** (1月 → January), **Dates** (1日 → first).
 

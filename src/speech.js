@@ -30,6 +30,9 @@ async function fetchModelBlobUrl(onProgress) {
   return URL.createObjectURL(blob);
 }
 
+/** letters and digits only, lower case: the safety net for spaces / capitals / punctuation */
+export const squash = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+
 const WORKLET = `
 class MicTap extends AudioWorkletProcessor {
   constructor() { super(); this.buf = new Float32Array(2048); this.n = 0; this.sum = 0; }
@@ -117,6 +120,7 @@ export class Speech extends EventTarget {
     this.wordSet = new Set(words);
     this.decoySet = new Set(decoys.filter(d => !this.wordSet.has(d)));
     this.same = same;
+    this.squashed = new Map(words.map(w => [squash(w), w]));
     this.rec?.remove(); this.open?.remove(); this.open = null;
     this.lastOpen = null; this.openWaiters = [];
     const rate = this.ctx?.sampleRate || 48000;
@@ -140,15 +144,17 @@ export class Speech extends EventTarget {
     }
   }
 
-  /** The last spoken tokens that form a known phrase (preferring the longest), else the last sound-alike. */
+  /** The last spoken tokens that form a known phrase (preferring the longest), else the last sound-alike.
+   *  Spaces, capitals and punctuation never matter: "text book" = "textbook", "t v" = "tv" = "TV". */
   match(tokens, partial, items = []) {
     for (let i = 0; i < tokens.length; i++) {
       const phrase = tokens.slice(i).join(' ');
-      if (this.wordSet.has(phrase)) {
+      const word = this.wordSet.has(phrase) ? phrase : this.squashed.get(squash(phrase));
+      if (word) {
         // while the student is still talking "rice" must not count if "rice ball" could still follow
-        if (partial && this.words.some(w => w.startsWith(phrase + ' '))) return { word: null, decoy: null, conf: 0 };
+        if (partial && this.words.some(w => w !== word && w.startsWith(phrase + ' '))) return { word: null, decoy: null, conf: 0 };
         const conf = items.length ? Math.min(...items.slice(i).map(x => x.conf)) : 0;
-        return { word: phrase, decoy: null, conf };
+        return { word, decoy: null, conf };
       }
     }
     let at = -1;
@@ -169,10 +175,15 @@ export class Speech extends EventTarget {
     });
   }
 
+  /** Does the unrestricted listener's text contain the word (or an identical-sounding one), ignoring spaces and case? */
   openAgrees(heard, word) {
-    const have = ` ${heard} `;
-    if (have.includes(` ${word} `)) return true;
-    return (this.same[word] || []).some(w => have.includes(` ${w} `));
+    const toks = heard.toLowerCase().split(/\s+/).filter(Boolean);
+    const want = new Set([word, ...(this.same[word] || [])].map(squash));
+    for (let i = 0; i < toks.length; i++) {
+      let acc = '';
+      for (let j = i; j < toks.length && acc.length <= 40; j++) { acc += squash(toks[j]); if (want.has(acc)) return true; }
+    }
+    return false;
   }
 
   pick(tokens) { return [...tokens].reverse().find(t => this.words.includes(t)) || null; }
