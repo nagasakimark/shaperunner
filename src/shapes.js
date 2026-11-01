@@ -147,7 +147,8 @@ function glyphLoops(text) {
   const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
   const w = maxX - minX, h = maxY - minY;
   // one character: fill the box exactly; several: same scale for every character so they read as one word
-  const k = n === 1 ? 1 / Math.max(w, h) : Math.min(MAX_W / w, MAX_H / h, 1 / Math.max(h / rows.length, 0.6));
+  const keepSize = n === 1 && chars[0] >= '\ue010' && chars[0] <= '\ue01f';     // drawn big / small / long / short ... keep their size
+  const k = keepSize ? 1 : n === 1 ? 1 / Math.max(w, h) : Math.min(MAX_W / w, MAX_H / h, 1 / Math.max(h / rows.length, 0.6));
   const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
   const norm = l => l.map(([px, py]) => [(px - cx) * k, (py - cy) * k]);
   return outers.map(o => ({ outer: norm(o.outer), holes: o.holes.map(norm) }));

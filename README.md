@@ -54,6 +54,9 @@ Keep them small (about 300×300): they're bundled into the page.
 holes), and arrows are hand-drawn. Words with no good picture (feelings, grammar words, countries ...) still use their Japanese text. Add a word by adding
 `label emoji` to `emoji_map.py` and running `npm run vocab`. (Outlines: `@fontsource/noto-emoji`, SIL OFL.)
 
+**Drawn shapes** (scripts/make_vocab.py, `custom_arrows`): arrows, a U-turn, big/small circles, long/short bars, high/low triangles (these keep their drawn size,
+so "Small" really is small) and twelve feelings as a face with the eyes and mouth cut out. Family and people use the emoji faces with their hair and features cut out.
+
 **Flags:** countries (Countries / World categories) are cut as a 3:2 banner. The real flag (`src/data/flags/*.svg`, from the MIT-licensed flag-icons set, see
 `LICENSE-flag-icons.txt`) hangs in the opening, see-through, so you can see which flag to match; the mascot turns into that flag. The country-to-flag table is `FLAGS` in `scripts/emoji_map.py`.
 

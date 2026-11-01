@@ -219,6 +219,20 @@ def build_categories(groups, everything):
     return books, words, packs, conflicts
 
 
+_EMOJI_CPS = None
+def emoji_available(ch):
+    """custom drawn shapes (private use) or a glyph in the emoji font"""
+    global _EMOJI_CPS
+    if 0xe000 <= ord(ch) <= 0xe0ff:
+        return True
+    if _EMOJI_CPS is None:
+        from fontTools.ttLib import TTFont
+        _EMOJI_CPS = set()
+        for f in glob.glob(os.path.join(ROOT, 'node_modules/@fontsource/noto-emoji/files/noto-emoji-*-700-normal.woff')):
+            _EMOJI_CPS |= set(TTFont(f).getBestCmap())
+    return ord(ch) in _EMOJI_CPS
+
+
 def make_word(ckey, special, en, it):
     wid = norm_id(en)
     if not wid:
@@ -251,7 +265,7 @@ def make_word(ckey, special, en, it):
         w.update(k='g', j=f'{ORD[key]}日')
     elif ckey in ('countries', 'world') and en.lower() in FLAGS:
         w.update(k='f', j=FLAGS[en.lower()])                                            # a flag
-    elif (EMOJI.get(f'{ckey}:{en.lower()}') or EMOJI.get(en.lower())):
+    elif (EMOJI.get(f'{ckey}:{en.lower()}') or EMOJI.get(en.lower())) and emoji_available(EMOJI.get(f'{ckey}:{en.lower()}') or EMOJI[en.lower()]):
         w.update(k='g', j=EMOJI.get(f'{ckey}:{en.lower()}') or EMOJI[en.lower()])      # a picture shape instead of Japanese text
     else:
         ja = JA_FIX_CAT.get((ckey, en.lower())) or JA_FIX.get(en.lower(), it['ja'])
@@ -408,21 +422,77 @@ def emoji_font_dir():
 
 
 def custom_arrows():
-    """Block arrows (and a U-turn) drawn by hand: the emoji versions sit in a box. Characters U+E000..E004 = left right up down turn."""
-    from shapely.geometry import Polygon, LineString
-    from shapely.affinity import rotate
+    """Hand-drawn shapes in the private-use area (the emoji versions of arrows sit in a box):
+       e000-e004 arrows/U-turn (scaled to fill the hole), e010-e015 big/small/long/short/high/low (keep their drawn size),
+       e020-e02b feelings: a face with the eyes and mouth cut out."""
+    import math
+    from shapely.geometry import Polygon, LineString, Point, box
+    from shapely.affinity import rotate, translate, scale
     from shapely.geometry.polygon import orient
+    from shapely.ops import unary_union
+
     right = Polygon([(-0.42, -0.13), (0.06, -0.13), (0.06, -0.36), (0.45, 0), (0.06, 0.36), (0.06, 0.13), (-0.42, 0.13)])
-    arc = [(-0.3 + 0.3 * (1 + __import__('math').cos(__import__('math').pi * (1 - i / 16))) , 0.1 + 0.3 * __import__('math').sin(__import__('math').pi * (1 - i / 16))) for i in range(17)]
+    arc = [(-0.3 + 0.3 * (1 + math.cos(math.pi * (1 - i / 16))), 0.1 + 0.3 * math.sin(math.pi * (1 - i / 16))) for i in range(17)]
     turn = LineString([(-0.3, -0.4), (-0.3, 0.1)] + arc[1:-1] + [(0.3, 0.1), (0.3, -0.05)]).buffer(0.11, cap_style=2, join_style=1)
     turn = turn.union(Polygon([(0.12, -0.05), (0.48, -0.05), (0.3, -0.38)]))
     shapes = {'\ue000': rotate(right, 180, origin=(0, 0)), '\ue001': right, '\ue002': rotate(right, 90, origin=(0, 0)),
               '\ue003': rotate(right, -90, origin=(0, 0)), '\ue004': turn}
+    centre = {c: (0.5, 0.4) for c in shapes}
+
+    # sizes (drawn at the size they should have in the hole)
+    shapes['\ue010'] = Point(0, 0).buffer(0.72, 48)
+    shapes['\ue011'] = Point(0, 0).buffer(0.2, 24)
+    shapes['\ue012'] = box(-0.74, -0.11, 0.74, 0.11)
+    shapes['\ue013'] = box(-0.22, -0.11, 0.22, 0.11)
+    shapes['\ue014'] = Polygon([(-0.26, -0.72), (0.26, -0.72), (0, 0.72)])
+    shapes['\ue015'] = Polygon([(-0.72, -0.2), (0.72, -0.2), (0, 0.2)])
+    for c in ('\ue010', '\ue011', '\ue012', '\ue013', '\ue014', '\ue015'):
+        centre[c] = (0.5, 0.4)
+
+    # faces
+    def line(pts, w=0.04):
+        return LineString(pts).buffer(w, cap_style=1, join_style=1)
+    def arcpts(cx, cy, r, a0, a1, n=14):
+        return [(cx + r * math.cos(math.radians(a0 + (a1 - a0) * i / n)), cy + r * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
+    def dot(x, y, r=0.065): return Point(x, y).buffer(r, 16)
+    def eyes_dots(): return unary_union([dot(-0.17, 0.12), dot(0.17, 0.12)])
+    def smile(w=0.24, y=-0.02): return line(arcpts(0, y, w, 205, 335), 0.04)
+    def frown(): return line(arcpts(0, -0.3, 0.2, 35, 145), 0.04)
+    def wavy(y=-0.2): return line([(-0.2 + i * 0.4 / 16, y + 0.035 * math.sin(i * math.pi / 2.7)) for i in range(17)], 0.032)
+    def halfdisc(r=0.2, y=-0.06): return Point(0, y).buffer(r, 24).intersection(box(-1, -1, 1, y))
+    def star(cx, cy, r=0.1):
+        pts = [(cx + (r if i % 2 == 0 else r * 0.45) * math.cos(math.pi / 2 + i * math.pi / 5), cy + (r if i % 2 == 0 else r * 0.45) * math.sin(math.pi / 2 + i * math.pi / 5)) for i in range(10)]
+        return Polygon(pts)
+    def drop(x, y):
+        return unary_union([Point(x, y).buffer(0.045, 12), Polygon([(x - 0.04, y + 0.02), (x + 0.04, y + 0.02), (x, y + 0.13)])])
+    def caret(x): return line([(x - 0.1, 0.1), (x, 0.2), (x + 0.1, 0.1)], 0.035)
+    faces = {
+        '\ue020': [eyes_dots(), smile()],
+        '\ue021': [eyes_dots(), frown(), drop(0.3, 0.0)],
+        '\ue022': [line([(-0.29, 0.3), (-0.08, 0.21)], 0.035), line([(0.29, 0.3), (0.08, 0.21)], 0.035), dot(-0.17, 0.1, 0.055), dot(0.17, 0.1, 0.055), frown()],
+        '\ue023': [line([(-0.26, 0.12), (-0.09, 0.12)], 0.035), line([(0.09, 0.12), (0.26, 0.12)], 0.035), Point(0, -0.17).buffer(0.07, 16)],
+        '\ue024': [dot(-0.17, 0.14, 0.09), dot(0.17, 0.14, 0.09), Point(0, -0.18).buffer(0.12, 20)],
+        '\ue025': [eyes_dots(), halfdisc(0.19, -0.08)],
+        '\ue026': [Point(-0.17, 0.1).buffer(0.08, 16).intersection(box(-1, -1, 1, 0.1)), Point(0.17, 0.1).buffer(0.08, 16).intersection(box(-1, -1, 1, 0.1)), wavy(-0.22)],
+        '\ue027': [star(-0.17, 0.13, 0.11), star(0.17, 0.13, 0.11), halfdisc(0.22, -0.04)],
+        '\ue028': [eyes_dots(), line([(-0.15, -0.14), (0.15, -0.14)], 0.03), Point(0.03, -0.17).buffer(0.07, 16).intersection(box(-1, -1, 1, -0.17))],
+        '\ue029': [line([(-0.25, 0.2), (-0.09, 0.05)], 0.032), line([(-0.25, 0.05), (-0.09, 0.2)], 0.032), line([(0.09, 0.2), (0.25, 0.05)], 0.032), line([(0.09, 0.05), (0.25, 0.2)], 0.032), wavy(-0.2)],
+        '\ue02a': [eyes_dots(), wavy(-0.2), drop(0.3, 0.22)],
+        '\ue02b': [caret(-0.17), caret(0.17), smile(0.2, -0.05)],
+    }
+    for c, feats in faces.items():
+        shapes[c] = Point(0, 0).buffer(0.5, 48).difference(unary_union(feats))
+        centre[c] = (0.5, 0.4)
+
     out = {}
     for ch, poly in shapes.items():
-        poly = orient(poly.simplify(0.002), 1.0)
-        pts = list(poly.exterior.coords)[:-1]
-        cmds = [['M' if i == 0 else 'L', [[round(x, 3) + 0.5, round(y, 3) + 0.4]]] for i, (x, y) in enumerate(pts)] + [['Z', []]]
+        parts = [poly] if poly.geom_type == 'Polygon' else list(poly.geoms)
+        cmds = []
+        for p in parts:
+            p = orient(p.simplify(0.002), 1.0)
+            for ring in [p.exterior, *p.interiors]:
+                pts = list(ring.coords)[:-1]
+                cmds += [['M' if i == 0 else 'L', [[round(x, 3) + centre[ch][0], round(y, 3) + centre[ch][1]]]] for i, (x, y) in enumerate(pts)] + [['Z', []]]
         out[ch] = {'adv': 1.0, 'cmds': cmds}
     return out
 

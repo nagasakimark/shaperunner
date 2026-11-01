@@ -55,9 +55,9 @@ things:bat 🏏|japan 🗾|america 🗽|moon 🌙|earth 🌍
 # custom drawn shapes (private-use characters, built in scripts/make_vocab.py)
 EMOJI_EXTRA = 'left \ue000|right \ue001|up \ue002|down \ue003|straight \ue002|turn \ue004|go \ue001'
 # line-art pictures whose plain silhouette is only a circle / box: keep their dark details as holes in the shape
-DETAIL_INK = set('⚽🏀⚾🏐🥎🐼🐻🐹👁🕐🍪🍩🥝🎾')
+DETAIL_INK = set('🚫🪙⚽🏀⚾🏐🥎🐼🐻🐹👁🕐🍪🍩🥝🎾👨👩👦👧👶👴👵🧒')
 # boxed symbols whose picture is the white part
-DETAIL_WHITE = set('♿💴🪟🖼🧱')
+DETAIL_WHITE = set('♿💴🪟🖼🧱♾')
 EMOJI = {}  # 'label' or 'category:label' -> emoji
 for line in E_RAW.strip().splitlines():
     for part in line.split('|'):
@@ -81,3 +81,22 @@ FLAGS = {
     'south africa': 'za', 'ghana': 'gh', 'morocco': 'ma', 'italy': 'it', 'spain': 'es', 'slovenia': 'si', 'switzerland': 'ch',
     'the netherlands': 'nl', 'norway': 'no', 'sweden': 'se',
 }
+
+# ---- second round: more pictures, people, opposites (drawn sizes) and feelings (drawn faces) ----
+MORE = """
+firefly ✨|jam 🫙|skirt 👗
+glue 🧴|album 📔|garbage 🗑|eco-friendly bag ♻|hot spring ♨|queen 👸
+mother 👩|father 👨|sister 👧|brother 👦|grandfather 👴|grandmother 👵|baby 👶|boy 👦|girl 👧|man 👨|woman 👩|head 👤
+big \ue010|small \ue011|long \ue012|short \ue013|high \ue014|low \ue015|tall 🦒|light 🪶|heavy 🏋|open 🔓|closed 🔒|fast 🏎|slow 🐢
+new ✨|old 👴|young 🧒|cheap 🪙|expensive 💰|clean 🧽
+hard 🪨|soft 🧸|sweet 🍬|salty 🧂|sour 🍋|spicy 🌶|always ♾|never 🚫
+recycle ♻|forest loss 🪓|chemicals 🧪|air pollution 🏭|global warming 🌡|traffic accidents 🚑|plastic 🥤|plant trees 🌱|over fishing 🎣|hunting 🏹
+japanese 🗾|moral education 🤝|volunteer day 🤝|see 👀|breakfast 🥐|dinner 🍽|fan 🪭
+happy \ue020|sad \ue021|angry \ue022|sleepy \ue023|surprised \ue024|hungry \ue025|tired \ue026|excited \ue027|thirsty \ue028|sick \ue029|nervous \ue02a|full \ue02b|face \ue020
+"""
+for line in MORE.strip().splitlines():
+    for part in line.split('|'):
+        part = part.strip()
+        if part:
+            k, _, e = part.rpartition(' ')
+            EMOJI[k] = e
