@@ -26,7 +26,7 @@ export const BOOKS = data.books.map(b => ({
   }),
 }));
 
-const KIND = { s: 'shape', c: 'color', g: 'glyph' };
+const KIND = { s: 'shape', c: 'color', g: 'glyph', f: 'flag' };
 const wordCache = new Map();
 function toWord(key) {
   if (wordCache.has(key)) return wordCache.get(key);
@@ -44,7 +44,7 @@ export function wordsOf(packIds) {
   const ids = new Set(), shapes = new Set(), out = [];
   for (const pid of packIds) for (const key of data.packs[pid] || []) {
     const w = toWord(key);
-    const shape = w.kind === 'glyph' ? w.text : w.kind === 'color' ? `c${w.color}` : w.id;
+    const shape = w.kind === 'glyph' ? w.text : w.kind === 'flag' ? `f${w.text}` : w.kind === 'color' ? `c${w.color}` : w.id;
     if (ids.has(w.id) || shapes.has(shape)) continue;
     ids.add(w.id); shapes.add(shape); out.push(w);
   }

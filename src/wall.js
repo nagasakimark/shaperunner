@@ -1,7 +1,8 @@
 // Toy-brick walls that span the whole track, with a hole shaped like the word.
 // A wall is a plain object with a fixed x position; the game decides pass / bonk when the player reaches it.
 import * as THREE from 'three';
-import { outlineFor } from './shapes.js';
+import { outlineFor, FLAG_W, FLAG_H } from './shapes.js';
+import { flagPlaneTexture } from './flags.js';
 import { toon, TRACK_W } from './world.js';
 import { PLAYER_SIZE, PLAYER_Y } from './player.js';
 
@@ -45,6 +46,7 @@ function place(shape, scale) { // unit outline -> wall coordinates (x across the
   return shape.getPoints(24).map(p => new THREE.Vector2(p.x * scale, p.y * scale + PLAYER_Y));
 }
 
+let holderFlag = null;
 /** @returns {{ holder: THREE.Group, word, state, x, attempts }} */
 export function buildWall(word, index, x, showLabel) {
   const o = outlineFor(word);
@@ -81,6 +83,16 @@ export function buildWall(word, index, x, showLabel) {
   }
   wall.add(sheet);
 
+  // flags: the picture of the flag hangs, see-through, in the opening, so you can see which flag to match
+  if (word.kind === 'flag') {
+    const fm = new THREE.MeshBasicMaterial({ map: flagPlaneTexture(word.text), transparent: true, opacity: 0.55, fog: false, depthWrite: false });
+    const fp = new THREE.Mesh(new THREE.PlaneGeometry(FLAG_W * HOLE_SIZE, FLAG_H * HOLE_SIZE), fm);
+    fp.position.set(0, PLAYER_Y, WALL_DEPTH / 2 - 0.005);
+    fp.renderOrder = 5;
+    wall.add(fp);
+    holderFlag = fm;
+  }
+
   // the word printed on the wall, like the original
   const labelMat = new THREE.MeshBasicMaterial({ map: labelTexture(word.label), transparent: true, fog: false, depthWrite: false });
   const label = new THREE.Mesh(new THREE.PlaneGeometry(WALL_W * 0.86, WALL_W * 0.86 / 4), labelMat);
@@ -91,7 +103,7 @@ export function buildWall(word, index, x, showLabel) {
   const holder = new THREE.Group();          // the holder is what topples over (hinged on the ground)
   holder.add(wall);
   holder.position.set(x, 0, 0);
-  holder.userData = { face, edge, sheetMat, labelMat };
+  holder.userData = { face, edge, sheetMat, labelMat, flagMat: word.kind === 'flag' ? holderFlag : null };
   return { holder, wall, label, sheetMat, word, x, state: 'ahead', attempts: 0, fallT: 0, shake: 0, index };
 }
 
@@ -106,5 +118,5 @@ export function updateWallLook(w, playerX) {
 export function disposeWall(w) {
   w.holder.traverse(o => { if (o.geometry) o.geometry.dispose(); });
   const u = w.holder.userData;
-  u.face?.dispose(); u.edge?.dispose(); u.sheetMat?.dispose(); u.labelMat?.map?.dispose(); u.labelMat?.dispose();
+  u.flagMat?.map?.dispose(); u.flagMat?.dispose(); u.face?.dispose(); u.edge?.dispose(); u.sheetMat?.dispose(); u.labelMat?.map?.dispose(); u.labelMat?.dispose();
 }

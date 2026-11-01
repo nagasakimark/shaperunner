@@ -134,7 +134,7 @@ ORD['thirtieth'] = 30; ORD['thirty-first'] = 31
 MAX_CHARS = 9
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from emoji_map import EMOJI, DETAIL_INK, DETAIL_WHITE
+from emoji_map import EMOJI, DETAIL_INK, DETAIL_WHITE, FLAGS
 
 
 def norm_id(english):
@@ -249,6 +249,8 @@ def make_word(ckey, special, en, it):
         if key not in ORD:
             return None
         w.update(k='g', j=f'{ORD[key]}日')
+    elif ckey in ('countries', 'world') and en.lower() in FLAGS:
+        w.update(k='f', j=FLAGS[en.lower()])                                            # a flag
     elif (EMOJI.get(f'{ckey}:{en.lower()}') or EMOJI.get(en.lower())):
         w.update(k='g', j=EMOJI.get(f'{ckey}:{en.lower()}') or EMOJI[en.lower()])      # a picture shape instead of Japanese text
     else:

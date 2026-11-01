@@ -66,6 +66,9 @@ function cross() {
   return polygon([[-a, b], [a, b], [a, a], [b, a], [b, -a], [a, -a], [a, -b], [-a, -b], [-a, -a], [-b, -a], [-b, a], [-a, a]]);
 }
 
+export const FLAG_W = 1.2, FLAG_H = 0.8;    // every flag is cut as the same 3:2 banner
+function flagRect() { return polygon([[-FLAG_W / 2, -FLAG_H / 2], [FLAG_W / 2, -FLAG_H / 2], [FLAG_W / 2, FLAG_H / 2], [-FLAG_W / 2, FLAG_H / 2]]); }
+
 const PRIMITIVES = {
   circle, moon, oval, cross,
   diamond: () => polygon([[0, 0.58], [0.44, 0], [0, -0.58], [-0.44, 0]]),
@@ -169,6 +172,9 @@ export function outlineFor(word) {
       hole: parts.map(p => toShape(p.outer)),
       islands: parts.flatMap(p => p.holes.map(toShape)),
     };
+  } else if (word.kind === 'flag') {
+    const r = flagRect();
+    result = { body: [r], hole: [flagRect()], islands: [] };
   } else {
     const make = word.kind === 'color' ? PRIMITIVES.splat : PRIMITIVES[word.id];
     result = { body: [make()], hole: [make()], islands: [] };

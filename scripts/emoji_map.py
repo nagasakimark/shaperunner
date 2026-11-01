@@ -70,3 +70,14 @@ for part in EMOJI_EXTRA.split('|'):
     k, _, e = part.rpartition(' ')
     EMOJI[k] = e
 EMOJI['wheelchair'] = '♿'
+
+# country -> ISO code of the flag picture in src/data/flags (flag-icons, MIT). Used for the "countries" and "world" categories:
+# the hole is flag-shaped and the flag is painted on the wall, see-through.
+FLAGS = {
+    'america': 'us', 'canada': 'ca', 'england': 'gb-eng', 'australia': 'au', 'china': 'cn', 'finland': 'fi', 'germany': 'de', 'france': 'fr',
+    'india': 'in', 'japan': 'jp', 'kenya': 'ke', 'korea': 'kr', 'the u.k.': 'gb', 'egypt': 'eg', 'brazil': 'br', 'mexico': 'mx', 'guatemala': 'gt',
+    'peru': 'pe', 'chile': 'cl', 'argentina': 'ar', 'new zealand': 'nz', 'the philippines': 'ph', 'indonesia': 'id', 'vietnam': 'vn',
+    'singapore': 'sg', 'thailand': 'th', 'nepal': 'np', 'mongolia': 'mn', 'russia': 'ru', 'iran': 'ir', 'saudi arabia': 'sa', 'turkey': 'tr',
+    'south africa': 'za', 'ghana': 'gh', 'morocco': 'ma', 'italy': 'it', 'spain': 'es', 'slovenia': 'si', 'switzerland': 'ch',
+    'the netherlands': 'nl', 'norway': 'no', 'sweden': 'se',
+}

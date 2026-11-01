@@ -54,6 +54,9 @@ Keep them small (about 300×300): they're bundled into the page.
 holes), and arrows are hand-drawn. Words with no good picture (feelings, grammar words, countries ...) still use their Japanese text. Add a word by adding
 `label emoji` to `emoji_map.py` and running `npm run vocab`. (Outlines: `@fontsource/noto-emoji`, SIL OFL.)
 
+**Flags:** countries (Countries / World categories) are cut as a 3:2 banner. The real flag (`src/data/flags/*.svg`, from the MIT-licensed flag-icons set, see
+`LICENSE-flag-icons.txt`) hangs in the opening, see-through, so you can see which flag to match; the mascot turns into that flag. The country-to-flag table is `FLAGS` in `scripts/emoji_map.py`.
+
 **Spaces and capitals never matter:** what the listener hears is compared with spaces, capitals and punctuation removed, so "text book" = "textbook",
 "tv" = "TV" = "t v", "t shirt" = "tshirt". This also applies to Expert's second listener.
 

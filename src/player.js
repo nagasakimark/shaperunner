@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { outlineFor } from './shapes.js';
 import { toon } from './world.js';
+import { flagBodyTexture } from './flags.js';
 
 export const PLAYER_SIZE = 1.55;                 // shape height in world units
 export const PLAYER_Y = 2.1;                     // centre height (same as the wall holes)
@@ -28,12 +29,14 @@ function bodyMesh(word) {
   geo.translate(0, 0, -UNIT_DEPTH / 2);
   const g = new THREE.Group();
   const side = new THREE.Color(color).multiplyScalar(0.62);
-  g.add(new THREE.Mesh(geo, [toon(color), toon(side)]));
+  const flag = word && word.kind === 'flag';
+  const front = flag ? new THREE.MeshBasicMaterial({ map: flagBodyTexture(word.text) }) : toon(color);
+  g.add(new THREE.Mesh(geo, [front, toon(flag ? 0x6a5a9a : side)]));
   // x-ray ghost: when the player is behind a wall (sliding through the hole) you still see where it is
   const ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.45, depthFunc: THREE.GreaterDepth, depthWrite: false }));
   ghost.renderOrder = 10;
   g.add(ghost);
-  if (!word || word.kind !== 'glyph') {            // outline looks great on simple shapes, but muddies thin kanji strokes
+  if (!word || word.kind !== 'glyph') {   // (flags too)            // outline looks great on simple shapes, but muddies thin kanji strokes
     const out = new THREE.Mesh(geo, OUTLINE);
     out.scale.set(1.075, 1.075, 1);
     g.add(out);
@@ -105,7 +108,7 @@ export class Player {
     this.holder.children.filter(c => c !== this.face.group).forEach(c => this.holder.remove(c));
     this.holder.add(bodyMesh(word));
     // Kanji and digits stay clean (no face on top of the strokes); simple shapes get the cute face.
-    const glyph = word && word.kind === 'glyph';
+    const glyph = word && (word.kind === 'glyph' || word.kind === 'flag');
     this.face.group.visible = !glyph;
     this.face.group.position.set(0, 0, UNIT_DEPTH / 2 + 0.03);
     if (!instant) this.pop = 1;
